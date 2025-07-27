@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Password Saver with PIN</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f3f4f6;
+      padding: 40px;
+      color: #111827;
+    }
+    h1, h2 {
+      text-align: center;
+    }
+    .container {
+      max-width: 600px;
+      margin: auto;
+      background: white;
+      padding: 30px;
+      border-radius: 10px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    }
+    input, button {
+      width: 100%;
+      padding: 10px;
+      margin: 10px 0;
+      border: 1px solid #d1d5db;
+      border-radius: 5px;
+    }
+    button {
+      background: #2563eb;
+      color: white;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    button:hover {
+      background: #1d4ed8;
+    }
+    .entry {
+      background: #f9fafb;
+      border: 1px solid #e5e7eb;
+      border-radius: 5px;
+      padding: 10px;
+      margin-top: 10px;
+    }
+    .entry p {
+      margin: 5px 0;
+    }
+    .actions button {
+      width: auto;
+      margin-right: 10px;
+      font-size: 0.8rem;
+      padding: 5px 10px;
+    }
+    .search-box {
+      margin-top: 30px;
+      border-top: 1px solid #e5e7eb;
+      padding-top: 20px;
+    }
+    #vault, #loginBox, #signupBox {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <h1>🔐 Password Saver</h1>
+  <div class="container" id="authBox">
+    <h2>Welcome</h2>
+    <button onclick="showSignup()">Sign Up</button>
+    <button onclick="showLogin()">Log In</button>
+  </div>
+
+  <div class="container" id="signupBox">
+    <h2>Sign Up</h2>
+    <input id="signupPin" placeholder="Enter 6-digit PIN" maxlength="6" />
+    <button onclick="signup()">Create Account</button>
+    <button onclick="backToAuth()">Back</button>
+  </div>
+
+  <div class="container" id="loginBox">
+    <h2>Log In</h2>
+    <input id="loginPin" placeholder="Enter your 6-digit PIN" maxlength="6" />
+    <button onclick="login()">Log In</button>
+    <button onclick="backToAuth()">Back</button>
+  </div>
+
+  <div class="container" id="vault">
+    <h2>Add New Password</h2>
+    <input id="app" placeholder="App Name (e.g. Gmail)" />
+    <input id="username" placeholder="Username or Email" />
+    <input id="password" placeholder="Password" />
+    <button onclick="savePassword()">Save Password</button>
+
+    <div class="search-box">
+      <h2>Find Password</h2>
+      <input id="search" placeholder="Search by App Name" oninput="renderPasswords()" />
+      <div id="results"></div>
+    </div>
+    <button onclick="logout()">Log Out</button>
+  </div>
+
+  <script>
+    let currentPin = null;
+
+    function showSignup() {
+      document.getElementById("authBox").style.display = "none";
+      document.getElementById("signupBox").style.display = "block";
+    }
+
+    function showLogin() {
+      document.getElementById("authBox").style.display = "none";
+      document.getElementById("loginBox").style.display = "block";
+    }
+
+    function backToAuth() {
+      document.getElementById("signupBox").style.display = "none";
+      document.getElementById("loginBox").style.display = "none";
+      document.getElementById("authBox").style.display = "block";
+    }
+
+    function signup() {
+      const pin = document.getElementById("signupPin").value.trim();
+      if (!/^\d{6}$/.test(pin)) return alert("PIN must be 6 digits.");
+      if (localStorage.getItem("passwords_" + pin)) return alert("PIN already exists.");
+
+      localStorage.setItem("passwords_" + pin, "{}");
+      currentPin = pin;
+      showVault();
+    }
+
+    function login() {
+      const pin = document.getElementById("loginPin").value.trim();
+      if (!/^\d{6}$/.test(pin)) return alert("PIN must be 6 digits.");
+      if (!localStorage.getItem("passwords_" + pin)) return alert("No account found with that PIN.");
+
+      currentPin = pin;
+      showVault();
+    }
+
+    function logout() {
+      currentPin = null;
+      document.getElementById("vault").style.display = "none";
+      document.getElementById("authBox").style.display = "block";
+    }
+
+    function showVault() {
+      document.getElementById("signupBox").style.display = "none";
+      document.getElementById("loginBox").style.display = "none";
+      document.getElementById("vault").style.display = "block";
+      renderPasswords();
+    }
+
+    function getPasswords() {
+      return JSON.parse(localStorage.getItem("passwords_" + currentPin) || "{}");
+    }
+
+    function savePasswords(passwords) {
+      localStorage.setItem("passwords_" + currentPin, JSON.stringify(passwords));
+    }
+
+    function savePassword() {
+      const app = document.getElementById("app").value.trim().toLowerCase();
+      const username = document.getElementById("username").value.trim();
+      const password = document.getElementById("password").value.trim();
+      if (!app || !username || !password) return alert("Fill all fields!");
+
+      const passwords = getPasswords();
+      passwords[app] = { app, username, password };
+      savePasswords(passwords);
+      document.getElementById("app").value = "";
+      document.getElementById("username").value = "";
+      document.getElementById("password").value = "";
+      renderPasswords();
+    }
+
+    function renderPasswords() {
+      const search = document.getElementById("search").value.toLowerCase();
+      const passwords = getPasswords();
+      const results = document.getElementById("results");
+      results.innerHTML = "";
+
+      Object.keys(passwords)
+        .filter(app => app.includes(search))
+        .forEach(app => {
+          const { username, password } = passwords[app];
+          const div = document.createElement("div");
+          div.className = "entry";
+          div.innerHTML = `
+            <p><strong>${app}</strong></p>
+            <p>Username: ${username}</p>
+            <p>Password: ${password}</p>
+            <div class="actions">
+              <button onclick="editPassword('${app}')">Edit</button>
+              <button onclick="deletePassword('${app}')">Delete</button>
+            </div>
+          `;
+          results.appendChild(div);
+        });
+    }
+
+    function deletePassword(app) {
+      const passwords = getPasswords();
+      if (confirm(`Delete password for ${app}?`)) {
+        delete passwords[app];
+        savePasswords(passwords);
+        renderPasswords();
+      }
+    }
+
+    function editPassword(app) {
+      const passwords = getPasswords();
+      const entry = passwords[app];
+      const newUsername = prompt("Edit Username/Email", entry.username);
+      const newPassword = prompt("Edit Password", entry.password);
+      if (newUsername && newPassword) {
+        passwords[app] = { app: entry.app, username: newUsername, password: newPassword };
+        savePasswords(passwords);
+        renderPasswords();
+      }
+    }
+  </script>
+</body>
+</html>
